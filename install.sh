@@ -92,8 +92,8 @@ if [ -n "$SOURCE" ]; then
 elif [ -n "$REPO_URL" ]; then
   case "$REPO_URL" in *"<OWNER>"*) echo "This copy of install.sh has no repository set (GITHUB_OWNER is a placeholder). Use --source DIR or DISH_MONITOR_REPO=<git url>." >&2; exit 1 ;; esac
   command -v git >/dev/null || { echo "git is required" >&2; exit 1; }
-  if [ -d "$PREFIX/.git" ]; then run git -C "$PREFIX" fetch --depth 1 origin "$REF"; run git -C "$PREFIX" checkout -q FETCH_HEAD
-  else run git clone -q --depth 1 --branch "$REF" "$REPO_URL" "$PREFIX"; fi
+  if [ -d "$PREFIX/.git" ]; then run git -C "$PREFIX" fetch --depth 1 origin "$REF"; run git -C "$PREFIX" -c advice.detachedHead=false checkout -q FETCH_HEAD
+  else run git -c advice.detachedHead=false clone -q --depth 1 --branch "$REF" "$REPO_URL" "$PREFIX"; fi
 else
   echo "No source: pass --source DIR, or set DISH_MONITOR_REPO to the public repository URL." >&2; exit 1
 fi
@@ -187,7 +187,7 @@ if have_systemd; then
   say "Tip: 'loginctl enable-linger \$USER' keeps it running after logout (may need sudo)."
 else
   say "systemd user session not available: start manually with"
-  echo "    cd $PREFIX && PORT=$PORT HOST=$HOST CONFIG_PATH=$CONF DATA_DIR=$STATE_DIR npm start"
+  echo "    cd $PREFIX && $([ "$MOCK" = 1 ] && echo "MOCK=1 ")PORT=$PORT HOST=$HOST CONFIG_PATH=$CONF DATA_DIR=$STATE_DIR NODE_ENV=production npm start"
 fi
 if [ "$DISHES" = 2 ] && [ -n "$IFACE1" ] && [ -n "$IFACE2" ]; then
   say "Two dishes share 192.168.100.1. Interface binding is used automatically (Linux >= 5.7, no root)."

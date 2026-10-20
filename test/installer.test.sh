@@ -28,6 +28,6 @@ done
 bash "$ROOT/install.sh" --dishes 3 --dry-run >/dev/null 2>&1 && fail "accepted 3 dishes" || true
 bash "$ROOT/install.sh" --iface1 'x;rm' --dry-run >/dev/null 2>&1 && fail "accepted bad iface" || true
 out=$(HOME=$(mktemp -d) bash "$ROOT/install.sh" --dry-run --no-systemd 2>&1) || fail "dry-run from repo failed"
-grep -q 'git clone -q --depth 1 --branch v0.1.0 https://github.com/jasondmillwood/dish-monitor.git' <<<"$out" || fail "owner repo URL not built"
+grep -q 'git -c advice.detachedHead=false clone -q --depth 1 --branch v0.1.0 https://github.com/jasondmillwood/dish-monitor.git' <<<"$out" || fail "owner repo URL not built"
 grep -q 'GITHUB_OWNER="jasondmillwood"' "$ROOT/install.sh" || fail "GITHUB_OWNER"
 echo "installer tests passed"
