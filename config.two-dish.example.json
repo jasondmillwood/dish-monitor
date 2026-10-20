@@ -1,0 +1,26 @@
+{
+  "title": "Dish Monitor",
+  "subtitle": "Two dishes",
+  "pollIntervalMs": 3000,
+  "mode": "auto",
+  "dishes": [
+    {
+      "slot": "roof",
+      "label": "Roof dish",
+      "kind": "standard",
+      "address": "192.168.100.1:9200",
+      "interface": "wlan0",
+      "ssidHint": "RoofDishWiFi",
+      "wifiHint": "First Wi-Fi adapter, joined to the roof dish network."
+    },
+    {
+      "slot": "mini",
+      "label": "Mini",
+      "kind": "mini",
+      "address": "192.168.100.1:9200",
+      "interface": "wlan1",
+      "ssidHint": "MiniDishWiFi",
+      "wifiHint": "Second Wi-Fi adapter, joined to the Mini network."
+    }
+  ]
+}

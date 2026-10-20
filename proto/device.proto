@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package SpaceX.API.Device;
+
+// Minimal proto: only fields we read, with correct wire numbers/types.
+// Unknown fields from the dish are skipped; wrong types on declared fields break decoding.
+
+service Device {
+  rpc Handle(Request) returns (Response);
+}
+
+message Request {
+  uint64 id = 1;
+  uint64 epoch_id = 14;
+  oneof request {
+    GetStatusRequest get_status = 1004;
+    GetHistoryRequest get_history = 1007;
+  }
+}
+
+message Response {
+  uint64 id = 1;
+  uint64 api_version = 3;
+  oneof response {
+    DishGetStatusResponse dish_get_status = 2004;
+    DishGetHistoryResponse dish_get_history = 2006;
+  }
+}
+
+message GetStatusRequest {}
+message GetHistoryRequest {}
+
+message DeviceInfo {
+  string id = 1;
+  string hardware_version = 2;
+  string software_version = 3;
+}
+
+message DeviceState {
+  uint64 uptime_s = 1;
+}
+
+message DishOutage {
+  enum Cause {
+    UNKNOWN = 0;
+    BOOTING = 1;
+    STOWED = 2;
+    THERMAL_SHUTDOWN = 3;
+    NO_SCHEDULE = 4;
+    NO_SATS = 5;
+    OBSTRUCTED = 6;
+    NO_DOWNLINK = 7;
+    NO_PINGS = 8;
+    ACTUATOR_ACTIVITY = 9;
+    CABLE_TEST = 10;
+    SLEEPING = 11;
+    SKY_SEARCH = 13;
+    INHIBIT_RF = 14;
+  }
+  Cause cause = 1;
+  int64 start_timestamp_ns = 2;   // GPS-epoch ns (added 2026-10-17 for history logging)
+  uint64 duration_ns = 3;
+  bool did_switch = 4;
+}
+
+message DishObstructionStats {
+  float fraction_obstructed = 1;
+  bool currently_obstructed = 5;
+}
+
+message DishGetStatusResponse {
+  DeviceInfo device_info = 1;
+  DeviceState device_state = 2;
+  float pop_ping_drop_rate = 1003;
+  DishObstructionStats obstruction_stats = 1004;
+  float downlink_throughput_bps = 1007;
+  float uplink_throughput_bps = 1008;
+  float pop_ping_latency_ms = 1009;
+  DishOutage outage = 1014;
+  bool is_snr_above_noise_floor = 1018;
+}
+
+message DishGetHistoryResponse {
+  uint64 current = 1;
+  repeated float pop_ping_drop_rate = 1001;
+  repeated float pop_ping_latency_ms = 1002;
+  repeated float downlink_throughput_bps = 1003;
+  repeated float uplink_throughput_bps = 1004;
+  repeated DishOutage outages = 1009;  // added 2026-10-17 for history logging
+}

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+data/*
+!data/.gitkeep
+data/*.tmp
+config.json
+config.*.local.json
+*.bak
+*.bak*
+*.token
+*token*
+*.key
+.env
+.DS_Store
