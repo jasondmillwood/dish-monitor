@@ -16,6 +16,11 @@ for n in 1 2; do
   [ -f "$H/.local/share/dish-monitor/dist/client/index.html" ] || fail "client not built"
   [ -f "$H/.config/systemd/user/dish-monitor.service" ] || fail "unit"
   [ -f "$H/.config/systemd/user/wifi-watchdog.timer" ] || fail "watchdog timer"
+  U="$H/.config/systemd/user/dish-monitor.service"
+  grep -q '^ExecStart=.*node .*/dist/server/index.js$' "$U" || fail "unit ExecStart is not node dist"
+  grep -q '^Restart=always$' "$U" && grep -q '^MemoryMax=' "$U" && grep -q '^StartLimitBurst=' "$U" && grep -q '^StartLimitIntervalSec=' "$U" || fail "unit restart/limits"
+  ! grep -q 'network-online' "$U" || fail "unit still orders on network-online"
+  [ -f "$H/.local/share/dish-monitor/dist/server/index.js" ] || fail "server not built"
   echo '{"dishes":[{"slot":"keep"}]}' > "$C"
   bash "$ROOT/install.sh" --source "$ROOT" --dishes $n --no-systemd >/dev/null
   grep -q keep "$C" || fail "re-run overwrote config"

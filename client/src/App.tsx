@@ -142,6 +142,9 @@ function DishCard({ dish }: { dish: DishMetrics }) {
 
       <p className="wifi-hint">{dish.wifiHint}</p>
       {dish.error && dish.freshness !== 'LIVE' ? <p className="error-line">{dish.error}</p> : null}
+      {dish.schemaSuspect && dish.freshness === 'LIVE' ? (
+        <p className="error-line">Warning: the dish says connected but every reading is 0. Its firmware may have changed the API.</p>
+      ) : null}
 
       <div className="metrics">
         <div className="metric">

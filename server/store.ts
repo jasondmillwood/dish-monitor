@@ -1,11 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { DishConfig } from './config.js';
 import type { DishMetrics, DishSlot, MonitorSnapshot, PersistedDish, RunMode, SparklinePoint } from './types.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../data');
+import { ROOT } from './root.js';
+export const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 
 function emptyDish(cfg: DishConfig): DishMetrics {
   return {
@@ -29,6 +28,7 @@ function emptyDish(cfg: DishConfig): DishMetrics {
     obstructionPct: null,
     currentlyObstructed: null,
     uptimeSeconds: null,
+    schemaSuspect: false,
     lastUpdated: null,
     lastLiveAt: null,
     sparkline: [],
@@ -83,6 +83,10 @@ export class DishStore {
   dishes: Record<DishSlot, DishMetrics> = {};
   readonly order: DishSlot[];
   private cfgs: Record<DishSlot, DishConfig> = {};
+  /** Status file writes: immediately when state/device/freshness changes, else at most every persistMs. */
+  private lastWrite: Record<DishSlot, { at: number; key: string }> = {};
+  writes = 0;
+  persistMs = Number(process.env.PERSIST_MS || 60_000);
 
   constructor(dishConfigs: DishConfig[]) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -111,7 +115,27 @@ export class DishStore {
     }
   }
 
+  private changeKey(slot: DishSlot): string {
+    const d = this.dishes[slot];
+    return [d.freshness, d.state, d.deviceId, d.hardwareVersion, d.softwareVersion, d.currentlyObstructed, d.schemaSuspect].join('|');
+  }
+
+  /** Write only on a meaningful change, or when the last write is older than persistMs (or force). */
+  maybePersist(slot: DishSlot, force = false) {
+    const key = this.changeKey(slot);
+    const last = this.lastWrite[slot];
+    const now = Date.now();
+    if (!force && last && last.key === key && now - last.at < this.persistMs) return false;
+    this.persist(slot);
+    this.lastWrite[slot] = { at: now, key };
+    return true;
+  }
+
+  /** Flush every dish (shutdown). */
+  flush() { for (const s of this.order) if (this.dishes[s].lastLiveAt) this.maybePersist(s, true); }
+
   persist(slot: DishSlot) {
+    this.writes++;
     const fp = fileFor(slot);
     const tmp = `${fp}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(toPersisted(this.dishes[slot]), null, 2));
@@ -136,7 +160,7 @@ export class DishStore {
       lastLiveAt: now,
       error: null,
     };
-    this.persist(slot);
+    this.maybePersist(slot);
   }
 
   markStale(slot: DishSlot, error?: string | null) {

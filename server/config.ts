@@ -3,8 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DishSlot } from './types.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
+import { ROOT } from './root.js';
 
 export interface DishConfig {
   /** Short unique id, [a-z0-9_-]{1,32}. Used in URLs and ./data/<slot>.json. */

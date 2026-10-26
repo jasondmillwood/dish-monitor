@@ -31,6 +31,7 @@ export interface DishMetrics {
   uptimeSeconds: number | null;
   lastUpdated: string | null;
   lastLiveAt: string | null;
+  schemaSuspect?: boolean;
   sparkline: SparklinePoint[];
   error: string | null;
 }

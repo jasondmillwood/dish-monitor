@@ -36,3 +36,17 @@ export function mockDish(index: number, isMini = index > 0, t = Date.now() / 100
     sparkline,
   };
 }
+
+/** MOCK_HISTORY=1 test aid: a small dish_get_history-shaped message (counts calls). */
+export let mockHistoryCalls = 0;
+export async function mockHistory(_target: string, _timeoutMs: number): Promise<any> {
+  mockHistoryCalls++;
+  const n = 120;
+  return {
+    current: String(1000 + mockHistoryCalls * 30),
+    pop_ping_drop_rate: Array.from({ length: n }, () => 0),
+    pop_ping_latency_ms: Array.from({ length: n }, (_, i) => 30 + (i % 7)),
+    downlink_throughput_bps: Array.from({ length: n }, (_, i) => 1e8 + i * 1e5),
+    uplink_throughput_bps: Array.from({ length: n }, () => 1e7),
+  };
+}

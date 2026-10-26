@@ -143,15 +143,20 @@ ENV_MOCK=""; [ "$MOCK" = 1 ] && ENV_MOCK="Environment=MOCK=1"
 write "$UNIT_DIR/dish-monitor.service" 644 <<U
 [Unit]
 Description=Dish Monitor (live dish status, port $PORT)
-After=network-online.target
+# No network ordering: system network targets do not apply to user units. The poller retries on its own.
+StartLimitIntervalSec=600
+StartLimitBurst=10
 
 [Service]
 WorkingDirectory=$PREFIX
 Environment=PORT=$PORT HOST=$HOST CONFIG_PATH=$CONF DATA_DIR=$STATE_DIR NODE_ENV=production
 $ENV_MOCK
-ExecStart=$(command -v npm) start --silent
-Restart=on-failure
+ExecStartPre=/usr/bin/test -f $PREFIX/dist/server/index.js
+ExecStart=$(command -v node) $PREFIX/dist/server/index.js
+Restart=always
 RestartSec=5
+MemoryMax=256M
+NoNewPrivileges=yes
 
 [Install]
 WantedBy=default.target
@@ -187,7 +192,7 @@ if have_systemd; then
   say "Tip: 'loginctl enable-linger \$USER' keeps it running after logout (may need sudo)."
 else
   say "systemd user session not available: start manually with"
-  echo "    cd $PREFIX && $([ "$MOCK" = 1 ] && echo "MOCK=1 ")PORT=$PORT HOST=$HOST CONFIG_PATH=$CONF DATA_DIR=$STATE_DIR NODE_ENV=production npm start"
+  echo "    cd $PREFIX && $([ "$MOCK" = 1 ] && echo "MOCK=1 ")PORT=$PORT HOST=$HOST CONFIG_PATH=$CONF DATA_DIR=$STATE_DIR NODE_ENV=production node dist/server/index.js"
 fi
 if [ "$DISHES" = 2 ] && [ -n "$IFACE1" ] && [ -n "$IFACE2" ]; then
   say "Two dishes share 192.168.100.1. Interface binding is used automatically (Linux >= 5.7, no root)."

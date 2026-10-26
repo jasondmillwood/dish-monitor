@@ -33,6 +33,8 @@ export interface DishMetrics {
   obstructionPct: number | null;
   currentlyObstructed: boolean | null;
   uptimeSeconds: number | null;
+  /** CONNECTED but every metric 0/absent: likely firmware/API field drift. */
+  schemaSuspect: boolean;
   lastUpdated: string | null;
   lastLiveAt: string | null;
   sparkline: SparklinePoint[];

@@ -1,10 +1,9 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROTO_PATH = path.resolve(__dirname, '../proto/device.proto');
+import { ROOT } from './root.js';
+const PROTO_PATH = path.join(ROOT, 'proto/device.proto');
 
 const OUTAGE_CAUSE: Record<number, string> = {
   0: 'UNKNOWN',
@@ -34,6 +33,8 @@ export interface RawDishStatus {
   obstructionPct: number;
   currentlyObstructed: boolean;
   uptimeSeconds: number;
+  /** True when the dish says CONNECTED but every metric reads 0/absent (likely firmware/API field drift). */
+  schemaSuspect?: boolean;
   sparkline: { t: number; downMbps: number; upMbps: number; pingMs: number }[];
 }
 
@@ -66,7 +67,7 @@ function bpsToMbps(bps: number | undefined | null): number {
   return Number(bps) / 1_000_000;
 }
 
-function deriveState(status: any): string {
+export function deriveState(status: any): string {
   if (status?.outage && (status.outage.cause !== undefined || status.outage.Cause !== undefined)) {
     const cause = status.outage.cause ?? status.outage.Cause;
     if (typeof cause === 'string') {
@@ -77,8 +78,7 @@ function deriveState(status: any): string {
   return 'CONNECTED';
 }
 
-function extractSparkline(history: any, maxPoints = 60) {
-  const now = Date.now();
+export function extractSparkline(history: any, maxPoints = 60, now = Date.now()) {
   const downs: number[] = history?.downlink_throughput_bps ?? [];
   const ups: number[] = history?.uplink_throughput_bps ?? [];
   const pings: number[] = history?.pop_ping_latency_ms ?? [];
@@ -98,6 +98,33 @@ function extractSparkline(history: any, maxPoints = 60) {
   return points;
 }
 
+/** Pure: turn a dish_get_status message into metrics (no sparkline). Exported for tests. */
+export function parseStatus(status: any): Omit<RawDishStatus, 'sparkline'> {
+  const info = status?.device_info ?? {};
+  const obstruction = status?.obstruction_stats ?? {};
+  const out = {
+    deviceId: info.id ?? null,
+    hardwareVersion: info.hardware_version ?? null,
+    softwareVersion: info.software_version ?? null,
+    state: deriveState(status),
+    downMbps: bpsToMbps(status?.downlink_throughput_bps),
+    upMbps: bpsToMbps(status?.uplink_throughput_bps),
+    pingMs: Number(status?.pop_ping_latency_ms ?? 0) || 0,
+    dropRate: Number(status?.pop_ping_drop_rate ?? 0) || 0,
+    snrAboveNoiseFloor: Boolean(status?.is_snr_above_noise_floor),
+    obstructionPct: (Number(obstruction.fraction_obstructed ?? 0) || 0) * 100,
+    currentlyObstructed: Boolean(obstruction.currently_obstructed),
+    uptimeSeconds: Number(status?.device_state?.uptime_s ?? 0) || 0,
+  };
+  return { ...out, schemaSuspect: isSchemaSuspect(out) };
+}
+
+/** CONNECTED, yet throughput, ping and uptime all read 0: the fields probably moved in a firmware update. */
+export function isSchemaSuspect(m: Pick<RawDishStatus, 'state' | 'downMbps' | 'upMbps' | 'pingMs' | 'uptimeSeconds'>): boolean {
+  return m.state === 'CONNECTED' && !m.downMbps && !m.upMbps && !m.pingMs && !m.uptimeSeconds;
+}
+
+/** One get_status call (no history: that is fetched separately and cached, see historyCache.ts). */
 export async function fetchDishStatus(
   address = process.env.DISH_ADDR || '192.168.100.1:9200',
   timeoutMs = 2500,
@@ -105,51 +132,20 @@ export async function fetchDishStatus(
   const root = loadProto();
   const Device = root.SpaceX.API.Device.Device;
   const client: DeviceClient = new Device(address, grpc.credentials.createInsecure(), {
-    'grpc.keepalive_time_ms': 10_000,
     'grpc.max_receive_message_length': 16 * 1024 * 1024,
   });
-
-  const call = (request: Record<string, unknown>) =>
-    new Promise<any>((resolve, reject) => {
-      client.Handle(request, { deadline: new Date(Date.now() + timeoutMs) }, (err, res) => {
+  try {
+    const statusRes = await new Promise<any>((resolve, reject) => {
+      client.Handle({ get_status: {} }, { deadline: new Date(Date.now() + timeoutMs) }, (err, res) => {
         if (err) reject(err);
         else resolve(res);
       });
     });
-
-  try {
-    const statusRes = await call({ get_status: {} });
-    const status = statusRes.dish_get_status;
+    const status = statusRes?.dish_get_status;
     if (!status) {
       throw new Error('No dish_get_status in response (is this a Starlink dish?)');
     }
-
-    let sparkline: RawDishStatus['sparkline'] = [];
-    try {
-      const histRes = await call({ get_history: {} });
-      sparkline = extractSparkline(histRes.dish_get_history);
-    } catch {
-      // history is optional
-    }
-
-    const info = status.device_info ?? {};
-    const obstruction = status.obstruction_stats ?? {};
-
-    return {
-      deviceId: info.id ?? null,
-      hardwareVersion: info.hardware_version ?? null,
-      softwareVersion: info.software_version ?? null,
-      state: deriveState(status),
-      downMbps: bpsToMbps(status.downlink_throughput_bps),
-      upMbps: bpsToMbps(status.uplink_throughput_bps),
-      pingMs: Number(status.pop_ping_latency_ms ?? 0),
-      dropRate: Number(status.pop_ping_drop_rate ?? 0),
-      snrAboveNoiseFloor: Boolean(status.is_snr_above_noise_floor),
-      obstructionPct: Number(obstruction.fraction_obstructed ?? 0) * 100,
-      currentlyObstructed: Boolean(obstruction.currently_obstructed),
-      uptimeSeconds: Number(status.device_state?.uptime_s ?? 0),
-      sparkline,
-    };
+    return { ...parseStatus(status), sparkline: [] };
   } finally {
     client.close();
   }
