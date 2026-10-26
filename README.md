@@ -79,7 +79,7 @@ Check `/api/config` to see which method each dish uses.
 The API has no login, so keep it on your LAN or a private VPN. Don't expose it to the internet.
 There are no CORS headers, so web pages on other sites can't read it; the built-in UI and server-side clients are unaffected.
 
-`/api/dish/<slot>/history` asks the dish at most once per `HISTORY_MIN_INTERVAL_MS` (default 10 s) per dish; other callers get the cached copy (`cached: true`, `fetchedAt` = when the dish answered). Each client may call it `HISTORY_RATE_MAX` (30) times per `HISTORY_RATE_WINDOW_MS` (60 s) per dish, then gets `429` with `Retry-After`. A dish that can't be reached gives `503 {"away": true}`.
+`/api/dish/<slot>/history` asks the dish at most once per `HISTORY_MIN_INTERVAL_MS` (default 10 s) per dish; other callers get the cached copy (`cached: true`, `fetchedAt` = when the dish answered). Each client may call it `HISTORY_RATE_MAX` (30) times per `HISTORY_RATE_WINDOW_MS` (60 s) per dish, then gets `429` with `Retry-After` (loopback and `HISTORY_RATE_EXEMPT=ip,ip` are never limited). A dish that can't be reached gives `503 {"away": true}`.
 The poller refreshes the sparkline from history every `HISTORY_POLL_MS` (30 s) and keeps each status call inside the poll interval. A dish that says it's connected but reports 0 for everything is flagged `schemaSuspect` (firmware may have moved the fields) and logged once.
 Logging: `LOG_LEVEL=debug` shows per-poll lines; the default prints a summary every 10 minutes. `FASTIFY_LOG=info` turns request logs on.
 

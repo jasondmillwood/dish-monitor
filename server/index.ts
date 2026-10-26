@@ -28,6 +28,11 @@ const MOCK_ON = process.env.MOCK === '1' || process.env.MOCK === 'true';
 const history = new HistoryCache(MOCK_ON && process.env.MOCK_HISTORY === '1' ? mockHistory : undefined);
 const poller = startPoller(store, cfg, proxies, { history });
 const limiter = new RateLimiter(HISTORY_RATE_MAX, HISTORY_RATE_WINDOW_MS);
+/** Clients never rate-limited (the dish is still protected by the upstream cache). Default: loopback only.
+ * Set HISTORY_RATE_EXEMPT=ip1,ip2 for trusted pollers (e.g. a home hub). */
+const RATE_EXEMPT = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1',
+  ...String(process.env.HISTORY_RATE_EXEMPT || '').split(',').map((x) => x.trim()).filter(Boolean)]);
+const clientIp = (ip: string) => ip.replace(/^::ffff:/, '');
 
 const shutdown = () => {
   poller.stop();
@@ -90,7 +95,7 @@ app.get('/api/dish/:dish/history', async (req, reply) => {
   if (!d) {
     return reply.code(404).send({ error: 'Unknown dish' });
   }
-  const wait = limiter.take(`${req.ip}|${slot}`);
+  const wait = RATE_EXEMPT.has(req.ip) || RATE_EXEMPT.has(clientIp(req.ip)) ? 0 : limiter.take(`${clientIp(req.ip)}|${slot}`);
   if (wait > 0) {
     reply.header('Retry-After', String(Math.ceil(wait / 1000)));
     return reply.code(429).send({ error: 'rate limited', retryAfterMs: wait });
