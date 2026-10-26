@@ -20,10 +20,10 @@ Needs Node.js 20 or newer and a systemd user session. No root.
 
 ```bash
 # one dish
-curl -fsSL https://raw.githubusercontent.com/jasondmillwood/dish-monitor/v0.1.0/install.sh | bash -s -- --dishes 1
+curl -fsSL https://raw.githubusercontent.com/jasondmillwood/dish-monitor/v0.1.1/install.sh | bash -s -- --dishes 1
 
 # two dishes, one Wi-Fi adapter each (find names with: ip -br link)
-curl -fsSL https://raw.githubusercontent.com/jasondmillwood/dish-monitor/v0.1.0/install.sh | bash -s -- --dishes 2 --iface1 wlan0 --iface2 wlan1
+curl -fsSL https://raw.githubusercontent.com/jasondmillwood/dish-monitor/v0.1.1/install.sh | bash -s -- --dishes 2 --iface1 wlan0 --iface2 wlan1
 ```
 
 Then open `http://localhost:8787`.

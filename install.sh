@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Dish Monitor installer (Linux, systemd user service). Unofficial; not affiliated with SpaceX or Starlink.
 #
-#   curl -fsSL https://raw.githubusercontent.com/jasondmillwood/dish-monitor/v0.1.0/install.sh | bash -s -- --dishes 1
+#   curl -fsSL https://raw.githubusercontent.com/jasondmillwood/dish-monitor/v0.1.1/install.sh | bash -s -- --dishes 1
 #   ./install.sh --dishes 2 --iface1 wlan0 --iface2 wlan1 [--watchdog]
 #   ./install.sh --dry-run ...      # print every step, change nothing
 #   ./install.sh --uninstall [--purge]
@@ -12,7 +12,7 @@ set -euo pipefail
 # GitHub user or organisation that owns the repo (forks: change this one line)
 GITHUB_OWNER="jasondmillwood"
 REPO_URL="${DISH_MONITOR_REPO:-https://github.com/${GITHUB_OWNER}/dish-monitor.git}"
-REF="${DISH_MONITOR_REF:-v0.1.0}"
+REF="${DISH_MONITOR_REF:-v0.1.1}"
 PREFIX="${DISH_MONITOR_PREFIX:-$HOME/.local/share/dish-monitor}"
 CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/dish-monitor"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dish-monitor"
