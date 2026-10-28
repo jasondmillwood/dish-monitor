@@ -93,7 +93,34 @@ python3 scripts/public-scrub.py --history .   # no private IPs / tokens in tree 
 npm run typecheck
 ```
 
+In demo mode (`MOCK=1` or `MOCK=true`), `/api/dish/<slot>/history` answers `503 {"away": true}` unless you also set `MOCK_HISTORY=1`, which serves a small mock history (it has no effect without `MOCK`).
+
 The **Speed test** button on a card runs in your browser against Cloudflare's public speed endpoint. It measures your current internet path, not the dish API, and runs only when you press it.
+
+## Built to be extended
+
+Dish Monitor is meant as a base: a small server that polls one or two dishes, and a UI on top of it. Build on either half.
+
+**Use the API.** This is the easiest way, and it is how homehub's `starlink` module works. Read:
+- `GET /api/status` for all dishes
+- `/api/dishes/<slot>` for one dish
+- `/api/dish/<slot>/history` for the dish's raw recent history
+
+Callers on loopback, and any IPs listed in `HISTORY_RATE_EXEMPT`, are never rate limited.
+
+**Change the server.** It is one Fastify app in `server/index.ts`. Endpoints are plain `app.get(...)` calls. The latest reading per dish is in the `DishStore` (`store.dishes[slot]`, `store.snapshot()`), which the poller in `server/poller.ts` keeps filled. Config is `config.json`, read by `server/config.ts`. A new key needs a field in `AppConfig` there.
+
+```ts
+// server/index.ts, next to the other routes
+app.get('/api/online', async () =>
+  Object.keys(store.dishes).filter((s) => store.dishes[s].state === 'CONNECTED'));
+```
+
+**Change the UI.** It is React + Vite in `client/src/` (`App.tsx`, `styles.css`), and it reads `/api/config` and `/api/status`. To work without a dish, run `MOCK=1 npm run dev`. Then run `npm test` before you share.
+
+There is no plugin system. Extending means editing these files, and that is fine.
+
+**Forks, spoons and knives welcome.** Fork it, spoon it (take a piece), knife it (cut it down to one card): all of it is welcome. You don't need to ask. There are no conditions beyond the MIT license.
 
 ## License
 MIT; see `LICENSE`. Third-party packages and their licenses are listed in `THIRD_PARTY_LICENSES` (all runtime packages are permissive).
